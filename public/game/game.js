@@ -7,7 +7,7 @@ export function startGame() {
         height: window.innerHeight,
         physics: {
             default: "arcade",
-            arcade: { gravity: { y: 900}, debug: false}
+            arcade: { gravity: { y: 900}, debug: true}
         },
         scene: { preload, create, update}
     }
@@ -18,9 +18,13 @@ export function startGame() {
             frameWidth: 128,
             frameHeight: 128
         });
-        this.load.spritesheet("enemyIdle", "./../assets/enemy/enemyIdle.png", {
-            frameWidth: 128,
-            frameHeight: 128
+        this.load.spritesheet("enemyIdle", "./../assets/Skeletons/enemyIdle.png", {
+            frameWidth: 150,
+            frameHeight: 150
+        });
+        this.load.spritesheet("enemyAttack", "./../assets/Skeletons/enemyAttack.png", {
+            frameWidth: 150,
+            frameHeight: 75
         });
     }
     
@@ -34,16 +38,22 @@ export function startGame() {
         this.add.image(window.innerWidth / 2, window.innerHeight / 2, "background")
         .setDisplaySize(window.innerWidth, window.innerHeight);
 
-        player = this.physics.add.sprite(150,150, "playerIdle");
+        player = this.physics.add.sprite(600,100, "playerIdle");
         player.setCollideWorldBounds(true);
+        player.setScale(1.2);
+        player.setSize(64, 128);
 
-        enemy = this.physics.add.sprite(600,150, "enemyIdle");
+        enemy = this.physics.add.sprite(100,100, "enemyIdle");
         enemy.setCollideWorldBounds(true);
+        enemy.setScale(1.5);
+        enemy.setSize(75, 75);
+        enemy.setOffset(40, 26);
 
         ground = this.physics.add.staticGroup();
         let groundHitbox = ground.create(400,580,null);
         groundHitbox.setSize(800, 20).refreshBody();
         groundHitbox.setVisible(false);
+        groundHitbox.setPosition(window.innerWidth / 2, window.innerHeight - -100).refreshBody();
 
         this.physics.add.collider(player, ground, () => {
             if (player.body.touching.down) {
@@ -66,10 +76,17 @@ export function startGame() {
 
         this.anims.create({
             key: "enemyIdle",
-            frames: this.anims.generateFrameNumbers("enemyIdle", { start: 0, end: 8 }),
+            frames: this.anims.generateFrameNumbers("enemyIdle", { start: 0, end: 3 }),
             frameRate: 8,  // Testa olika frameRate-värden (t.ex. 6, 8, 12)
             repeat: -1  // -1 gör att den loopar oändligt
         });
+
+        this.anims.create({
+            key: "enemyAttack",
+            frames: this.anims.generateFrameNumbers("enemyAttack", { start:0, end: 7}),
+            frameRate: 12,
+            repeat: 0
+        })
 
         player.play("playerIdle");
         enemy.play("enemyIdle");
@@ -86,6 +103,9 @@ export function startGame() {
         const A = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
         const S = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
         const D = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
+
+        const X = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
+        const minusKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.MINUS);
 
         if (player.body.blocked.down) {
             playerJumpCount = 0;
@@ -107,7 +127,7 @@ export function startGame() {
     
         // Låt spelaren hoppa när upp-pilen trycks (och spelaren är på marken)
         if (Phaser.Input.Keyboard.JustDown(upKey) && playerJumpCount < 2) {
-            player.setVelocityY(-300); // Hoppa uppåt
+            player.setVelocityY(-400); // Hoppa uppåt
             playerJumpCount++; // Öka hopp-räknaren
         }
 
@@ -140,7 +160,7 @@ export function startGame() {
     
         // Låt spelaren hoppa när upp-pilen trycks (och spelaren är på marken)
         if (Phaser.Input.Keyboard.JustDown(W) && enemyJumpCount < 2) {
-            enemy.setVelocityY(-300); // Hoppa uppåt
+            enemy.setVelocityY(-400); // Hoppa uppåt
             enemyJumpCount++; // Öka hopp-räknaren
         }
 
@@ -149,10 +169,42 @@ export function startGame() {
             enemy.setVelocityY(0);  // Stoppa vertikal rörelse om ned-pilen trycks
         }
 
-        if (enemy.body.velocity.x === 0 && enemy.body.velocity.y === 0) {
-            enemy.play("enemyIdle", true);  // Spela idle-animationen när spelaren står still
+        if (
+            enemy.body.velocity.x === 0 &&
+            enemy.body.velocity.y === 0 &&
+            enemy.anims.currentAnim.key !== "enemyAttack"
+        ) {
+            enemy.play("enemyIdle", true);
         }
 
+        if (Phaser.Input.Keyboard.JustDown(X)) {
+            if (enemy.anims.currentAnim && enemy.anims.currentAnim.key === "enemyAttack") {
+                return;
+            }
+
+            enemy.stop();
+            enemy.setVelocityX(0);
+            enemy.setVelocityY(0);
+
+            // Ändra hitbox temporärt under attacken
+            enemy.setSize(150, 150);  // För att visa hela fienden
+            enemy.setOffset(0, 0);    // För att centera fienden
+
+            enemy.play("enemyAttack");
+
+            // Återställ till idle-animation efter attacken
+            enemy.once("animationcomplete", (animation) => {
+                if (animation.key === "enemyAttack") {
+                    enemy.setSize(75, 75);   // Sätt tillbaka storleken
+                    enemy.setOffset(40, 26); // Sätt tillbaka offset
+                    enemy.play("enemyIdle");
+                }
+            });
+        }
+
+        if (enemy.body.velocity.x === 0 && enemy.body.velocity.y === 0) {
+            enemy.play("enemyIdle", true);
+        }
         
     }
     
