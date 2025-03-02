@@ -24,7 +24,7 @@ export function startGame() {
         });
         this.load.spritesheet("enemyAttack", "./../assets/Skeletons/enemyAttack.png", {
             frameWidth: 150,
-            frameHeight: 75
+            frameHeight: 150
         });
     }
     
@@ -33,6 +33,8 @@ export function startGame() {
     let ground;
     let playerJumpCount = 0;
     let enemyJumpCount = 0;
+    let enemyIsAttacking = false;
+
 
     function create() {
         this.add.image(window.innerWidth / 2, window.innerHeight / 2, "background")
@@ -93,120 +95,96 @@ export function startGame() {
     }
 
     function update() {
-        // Lyssna på input från piltangenterna
         const leftKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.LEFT);
         const rightKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.RIGHT);
         const upKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.UP);
         const downKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.DOWN);
-
+    
         const W = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.W);
         const A = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.A);
         const S = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.S);
         const D = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.D);
-
+    
         const X = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.X);
-        const minusKey = this.input.keyboard.addKey(Phaser.Input.Keyboard.KeyCodes.MINUS);
-
+    
         if (player.body.blocked.down) {
             playerJumpCount = 0;
         }
     
-        // Rörelse åt vänster om vänsterpil trycks
         if (leftKey.isDown) {
-            player.setVelocityX(-200);  // Sätt hastigheten åt vänster (negativ riktning på X-axeln)
+            player.setVelocityX(-200);
             player.setFlipX(true);
-        }
-        // Rörelse åt höger om högerpil trycks
-        else if (rightKey.isDown) {
-            player.setVelocityX(200);  // Sätt hastigheten åt höger (positiv riktning på X-axeln)
+        } else if (rightKey.isDown) {
+            player.setVelocityX(200);
             player.setFlip(false);
-        }
-        else {
-            player.setVelocityX(0); // Stoppa rörelse om ingen pil är nedtryckt
+        } else {
+            player.setVelocityX(0);
         }
     
-        // Låt spelaren hoppa när upp-pilen trycks (och spelaren är på marken)
         if (Phaser.Input.Keyboard.JustDown(upKey) && playerJumpCount < 2) {
-            player.setVelocityY(-400); // Hoppa uppåt
-            playerJumpCount++; // Öka hopp-räknaren
+            player.setVelocityY(-400);
+            playerJumpCount++;
         }
-
-        // Stanna karaktären om ned-pil trycks
+    
         if (downKey.isDown) {
-            player.setVelocityY(0);  // Stoppa vertikal rörelse om ned-pilen trycks
+            player.setVelocityY(0);
         }
-
+    
         if (player.body.velocity.x === 0 && player.body.velocity.y === 0) {
-            player.play("playerIdle", true);  // Spela idle-animationen när spelaren står still
+            player.play("playerIdle", true);
         }
-
+    
         if (enemy.body.blocked.down) {
             enemyJumpCount = 0;
         }
     
-        // Rörelse åt vänster om vänsterpil trycks
-        if (A.isDown) {
-            enemy.setVelocityX(-200);  // Sätt hastigheten åt vänster (negativ riktning på X-axeln)
-            enemy.setFlipX(true);
-        }
-        // Rörelse åt höger om högerpil trycks
-        else if (D.isDown) {
-            enemy.setVelocityX(200);  // Sätt hastigheten åt höger (positiv riktning på X-axeln)
-            enemy.setFlip(false);
-        }
-        else {
-            enemy.setVelocityX(0); // Stoppa rörelse om ingen pil är nedtryckt
+        if (!enemyIsAttacking) { // Se till att fienden bara kan röra sig om den INTE attackerar
+            if (A.isDown) {
+                enemy.setVelocityX(-200);
+                enemy.setFlipX(true);
+            } else if (D.isDown) {
+                enemy.setVelocityX(200);
+                enemy.setFlip(false);
+            } else {
+                enemy.setVelocityX(0);
+            }
+    
+            if (Phaser.Input.Keyboard.JustDown(W) && enemyJumpCount < 2) {
+                enemy.setVelocityY(-400);
+                enemyJumpCount++;
+            }
+    
+            if (S.isDown) {
+                enemy.setVelocityY(0);
+            }
+    
+            if (
+                enemy.body.velocity.x === 0 &&
+                enemy.body.velocity.y === 0 &&
+                enemy.anims.currentAnim.key !== "enemyAttack"
+            ) {
+                enemy.play("enemyIdle", true);
+            }
         }
     
-        // Låt spelaren hoppa när upp-pilen trycks (och spelaren är på marken)
-        if (Phaser.Input.Keyboard.JustDown(W) && enemyJumpCount < 2) {
-            enemy.setVelocityY(-400); // Hoppa uppåt
-            enemyJumpCount++; // Öka hopp-räknaren
-        }
-
-        // Stanna karaktären om ned-pil trycks
-        if (S.isDown) {
-            enemy.setVelocityY(0);  // Stoppa vertikal rörelse om ned-pilen trycks
-        }
-
-        if (
-            enemy.body.velocity.x === 0 &&
-            enemy.body.velocity.y === 0 &&
-            enemy.anims.currentAnim.key !== "enemyAttack"
-        ) {
-            enemy.play("enemyIdle", true);
-        }
-
-        if (Phaser.Input.Keyboard.JustDown(X)) {
-            if (enemy.anims.currentAnim && enemy.anims.currentAnim.key === "enemyAttack") {
-                return;
-            }
-
+        if (Phaser.Input.Keyboard.JustDown(X) && !enemyIsAttacking) {
+    
+            enemyIsAttacking = true;
             enemy.stop();
             enemy.setVelocityX(0);
             enemy.setVelocityY(0);
-
-            // Ändra hitbox temporärt under attacken
-            enemy.setSize(150, 150);  // För att visa hela fienden
-            enemy.setOffset(0, 0);    // För att centera fienden
-
+    
             enemy.play("enemyAttack");
-
-            // Återställ till idle-animation efter attacken
+    
             enemy.once("animationcomplete", (animation) => {
                 if (animation.key === "enemyAttack") {
-                    enemy.setSize(75, 75);   // Sätt tillbaka storleken
-                    enemy.setOffset(40, 26); // Sätt tillbaka offset
+                    enemyIsAttacking = false;
                     enemy.play("enemyIdle");
                 }
             });
         }
-
-        if (enemy.body.velocity.x === 0 && enemy.body.velocity.y === 0) {
-            enemy.play("enemyIdle", true);
-        }
-        
     }
+    
     
     const game = new Phaser.Game(config);
 }
